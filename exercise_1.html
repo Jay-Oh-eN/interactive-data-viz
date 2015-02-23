@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="lib/d3.js"></script>
+  <script src="lib/dimple.js"></script>
+  <script>
+    function draw(bangalore) {
+    "use strict";
+
+    /*
+        D3.js setup code
+    */
+
+    // set margins according to Mike Bostock's margin conventions
+    // http://bl.ocks.org/mbostock/3019563
+    var margin = {top: 25, right: 40, bottom: 150, left: 25};
+
+    // set height and width of chart
+    var width = 1400 - margin.left - margin.right,
+        height = 800 - margin.top - margin.bottom;
+
+    // append the SVG tag with height and width to accommodate for margins
+    // This is where dimple will draw our chart
+    var svg = d3.select("body")
+                .append("svg")
+                  .attr("width", width + margin.left + margin.right)
+                  .attr("height", height + margin.top + margin.bottom)
+                .append('g')
+                    .attr('class','chart')
+                    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+      // asynchronously load a second dataset
+      d3.csv('data/shanghai-1hw.csv', function(shanghai) {
+          // concatenate our two data files into one
+          var data = bangalore.concat(shanghai);
+
+          /*
+            Dimple.js Chart construction code
+          */
+
+          // initialize a new chart to be rendered in the svg
+          var myChart = new dimple.chart(svg, data);
+
+          // set our margins appropriately
+          myChart.setMargins(margin.left, margin.top, margin.right, margin.bottom)
+
+          // second argument has to match column name
+          var x = myChart.addTimeAxis("x", "timestamp");
+
+          // second argument has to match column name
+          myChart.addMeasureAxis("y", "airquality_raw");
+
+          // https://github.com/mbostock/d3/wiki/Time-Formatting
+          // (2015-02-16T17:00:00.000Z) -- ISO 8601
+          x.dateParseFormat = "%Y-%m-%dT%H:%M:%S.%LZ";
+
+          // set the styling of the x-axis ticks
+          x.tickFormat = "%m/%d (%H:%M)";
+          x.timePeriod = d3.time.hours;
+          x.timeInterval = 4
+
+          // the first argument specifies the column we want
+          // to facet (group) on and the second argument is
+          // the chart type we want to create
+          var line = myChart.addSeries('city', dimple.plot.line);
+          
+          // once we have properly set the properties and data of our chart
+          // we render it into the svg
+          myChart.draw();
+      });
+    }
+  </script>
+</head>
+  <body>
+    <script>
+      /*
+      Use D3 (not dimple.js) to load the CSV file
+      and pass the contents of it to the draw function
+      */
+      d3.csv("data/bangalore-1hw.csv", draw);
+    </script>
+  </body>
+</html>

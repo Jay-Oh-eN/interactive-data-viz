@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="lib/d3.js"></script>
+    <style>
+      body {
+        font-family: futura;
+      }
+
+      h2.title {
+        color: black;
+        text-align: center;
+      }
+
+      .axis {
+        font-family: arial;
+        font-size: 0.7em;
+      }
+
+      text {
+        fill: black;
+      }
+
+      .label {
+        font-size: 2em;
+      }
+
+      path {
+        fill: none;
+        stroke: black;
+        stroke-width: 2px;
+      }
+
+      .tick {
+        fill: none;
+        stroke: black;
+      }
+
+      circle {
+        opacity: 0.9;
+        stroke: none;
+        fill: red;
+      }
+
+      .line {
+        fill: none;
+        stroke: #4eb0bb;
+        stroke-width: 1px;
+      }
+    </style>
+
+    <script type="text/javascript">
+      format = d3.time.format("%Y-%m-%dT%H:%M:%S.%LZ");
+
+      function draw(data) {
+          "use strict";
+
+          // set margins according to Mike Bostock's margin conventions
+          // http://bl.ocks.org/mbostock/3019563
+          var margin = {top: 25, right: 40, bottom: 150, left: 75};
+
+          // set height and width of chart
+          var width = 1400 - margin.left - margin.right,
+              height = 800 - margin.top - margin.bottom;
+
+          // specify the radius of our circles and the
+          // column we want to plot
+          var radius = 3,
+              field = 'airquality_raw';
+        
+          // Append the title for the graph
+          d3.select("body")
+              .append("h2")
+              .text("Shanghai Air Quality")
+              .attr('class', 'title');
+
+          // append the SVG tag with height and width to accommodate for margins
+          var svg = d3.select("body")
+                      .append("svg")
+                          .attr("width", width + margin.left + margin.right)
+                          .attr("height", height + margin.top + margin.bottom)
+                      .append('g')
+                          .attr('class','chart')
+                          .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+          // bind our data to svg circles for the scatter plot
+          svg.selectAll("circle")
+              .data(data)
+              .enter()
+              .append("circle")
+
+            // maximum measurement for air quality
+            var max_y = d3.max(data, function(d) {
+                return d[field];
+            });
+
+            // get min/max times of first day of data
+            // (we will need a new extent for each day)
+            var time_extent = d3.extent(data, function(d){
+                return format.parse(d['timestamp']);
+            });
+
+            // Create x-axis scale mapping dates -> pixels
+            var time_scale = d3.time.scale()
+                .range([0, width])
+                .domain(time_extent);
+
+            // Create y-axis scale mapping temperature -> pixels
+            var measure_scale = d3.scale.linear()
+                .range([height, 0])
+                .domain([0, max_y]);
+
+            // Create D3 axis object from time_scale for the x-axis
+            var time_axis = d3.svg.axis()
+                .scale(time_scale)
+                .ticks(d3.time.hours, 12)
+                .tickFormat(d3.time.format("%m/%d (%H:00)"));
+
+            // Create D3 axis object from temp_scale for the y-axis
+            var measure_axis = d3.svg.axis()
+                .scale(measure_scale)
+                .orient("left");
+
+            // Append SVG to page corresponding to the D3 x-axis
+            svg.append('g')
+                .attr('class', 'x axis')
+                .attr('transform', "translate(0," + height + ")")
+                .call(time_axis);
+
+            // Append SVG to page corresponding to the D3 y-axis
+            svg.append('g')
+                .attr('class', 'y axis')
+                .call(measure_axis);
+
+            // add label to y-axis
+            d3.select(".y.axis")
+                .append("text")
+                .attr('class', 'label')
+                .text("Pollution (mV)")
+                .attr("transform", "rotate(-90, -43, 0) translate(-400)");
+
+            // based on the data bound to each svg circle,
+            // change its center-x (cx) and center-y (cy)
+            // coordinates
+            d3.selectAll('circle')
+                .attr('cx', function(d) {
+                    return time_scale(format.parse(d['timestamp']));
+                })
+                .attr('cy', function(d) {
+                    return measure_scale(+d[field]);
+                })
+                .attr('r', radius);
+
+            // define the values to map for x and y position of the line
+            var line = d3.svg.line()
+                         .x(function(d) { return time_scale(format.parse(d['timestamp'])); })
+                         .y(function(d) { return measure_scale(d[field]); });
+
+            // append a SVG path that corresponds to the line chart
+            svg.append("path")
+              .datum(data)
+              .attr("class", "line")
+              .attr("d", line);
+        };
+      </script>
+  </head>
+  <body>
+    <script type="text/javascript">
+    // load our data file asynchronously and pass the data
+    // to the draw function once it is loaded.
+    d3.csv("data/shanghai-6hw.csv", draw);
+    </script>
+  </body>
+</html>
