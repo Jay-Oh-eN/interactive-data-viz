@@ -28,7 +28,6 @@ Once you have downloaded the software above, you are ready to start making some 
 2. Start you HTTP web server
     * If using a `SimpleHTTPServer`, navigate into the repository folder (`strata-interactive-data-viz`) on your machine before you start the server.
     * If using Mongoose, set the 'Shared Directory' to be the repository folder.
-    ![][mongoose-config]
 3. Navigate with a web browser to `http://localhost:[port]` where [port] is the port the server has started on (`SimpleHTTPServer` defaults to port 8000)
 4. You should see the directory listing, click on any of the `.html` files and you should see the charts.
 
