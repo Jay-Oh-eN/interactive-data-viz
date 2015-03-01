@@ -6,7 +6,7 @@ I would love your feedback on the materials either on the [Q&A forum](https://gr
 
 And please do not hesitate to reach out to me directly via email at jondinu@gmail.com or over twitter @clearspandex
 
-![][viz-ani]
+![Imgur](http://i.imgur.com/uNMk5Ch.gif)
 
 > Throughout this workshop, you will learn how to make this animated and interactive line plot of temperature over time in Noe Valley.
 
