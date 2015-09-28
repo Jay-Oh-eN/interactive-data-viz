@@ -5,7 +5,7 @@
   <script src="d3.js"></script>
   <style>
     circle {
-      opacity: 0.2;
+      opacity: 0.5;
     }
     body {
         font-family: futura;
@@ -60,7 +60,8 @@
     var radius = 3,
         field = 'San Francisco',
         x_field = "number_of_reviews",
-        y_field = "availability_365";
+        y_field = 'price',
+        size_field = 'reviews_per_month';
   
     // Append the title for the graph
     d3.select("body")
@@ -79,7 +80,7 @@
     
     // remove missing values
     data = data.filter(function(d) {
-      return d[y_field];
+      return d[y_field] < 500;
     });
 
     // bind our data to svg circles for the scatter plot
@@ -98,6 +99,11 @@
           return +d[x_field];
       });
 
+      // get min/max host listings count
+      var host_extent = d3.extent(data, function(d){
+          return +d[size_field];
+      });
+
       // Create x-axis scale mapping dates -> pixels
       var review_scale = d3.scale.linear()
           .range([0, width])
@@ -107,6 +113,11 @@
       var measure_scale = d3.scale.linear()
           .range([height, 0])
           .domain([0, max_y]);
+
+      // Create y-axis scale mapping price -> pixels
+      var host_scale = d3.scale.pow().exponent(1.5)
+          .range([1, 10])
+          .domain(host_extent);
 
       // Create D3 axis object from time_scale for the x-axis
       var x_axis = d3.svg.axis()
@@ -146,7 +157,7 @@
               return measure_scale(+d[y_field]);
           })
           .attr('r', function(d) {
-            return 2;
+            return host_scale(+d[size_field]);
           })
           .style('fill', function(d) {
             switch (d['room_type']) {

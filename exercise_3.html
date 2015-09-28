@@ -2,366 +2,240 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <script src="lib/d3.js"></script>
-  <script src="lib/moment.js"></script>
-      <style>
-        body {
-          font-family: futura;
-        }
+  <script src="d3.js"></script>
+  <style>
+    body, html {
+      width: 100%;
+      height: 100%;
+    }
 
-        h2.title {
-          color: black;
-          text-align: center;
-        }
+    svg {
+      width:50%;
+      height:100%;
+      float: left;
+    }
 
-        .axis {
-          font-family: arial;
-          font-size: 0.8em;
-        }
+    circle.airbnb {
+      fill: #e00007;
+      opacity: 0.6;
+    }
 
-        .axis text {
-          fill: black;
-        }
+    .axis {
+        font-family: arial;
+        font-size: 0.7em;
+      }
+      text {
+        fill: black;
+      }
+      .label {
+        font-size: 2em;
+      }
+      path {
+        fill: none;
+        stroke: black;
+        stroke-width: 2px;
+      }
+      .tick {
+        fill: none;
+        stroke: black;
+      }
+      circle {
+        opacity: 0.9;
+        stroke: none;
+        fill: red;
+      }
+      .line {
+        fill: none;
+        stroke: #e00007;
+        stroke-width: 1px;
+      }
+  </style>
+  <script>
+    function draw(geo_data) {
+    "use strict";
 
-        path {
-          fill: none;
-          stroke: black;
-          stroke-width: 2px;
-        }
+    /*
+    D3.js setup code
+    */
 
-        .tick {
-          fill: none;
-          stroke: black;
-        }
+    var margin = 75,
+        width = 750 - margin,
+        height = 780 - margin;
 
-        .line {
-          fill: none;
-          stroke: url(#temperature-gradient);
-          stroke-width: 1px;
-        }
+    // https://github.com/mbostock/d3/wiki/Time-Formatting
+    var format = d3.time.format("%Y-%m-%d");
+    
+    var projection = d3.geo.mercator()
+                          .center([-122.433701, 37.767683])
+                          .scale(230000)
+                          .translate([width / 1.95, height / 1.74]);
+    
+    var path = d3.geo.path()
+                     .projection(projection);
 
-        div.day_buttons {
-            position: fixed;
-            top: 5px;
-            left: 1375px;
-          }
+    var map = d3.select('#map').selectAll('path')
+                 .data(geo_data.features)
+                 .enter()
+                 .append('path')
+                 .attr('d', path)
+                 .style('fill', '#eee')
+                 .style('stroke', 'black')
+                 .style('stroke-width', 1);
 
-        div.day_buttons div {
-          text-align: center;
-          background-color: #438CCA;
-          color: white;
-          padding: 6px;
-          margin: 9px;
-          font-size: 1em;
-          cursor: pointer;
-        }
-    </style>
+    map.datum(function(d) {
+      var normalized = d.properties.neighbourhood
+                        .replace(/ /g, '_')
+                        .replace(/\//g, '_');
 
-    <script type="text/javascript">
-      // D3 utility to convert from timestamp string to Date object
-      var format = d3.time.format("%Y-%m-%dT%H:%M:%S.%LZ");
+      d.properties.neighbourhood = normalized;
+      return d;
+    });
 
-      function draw(data) {
-        "use strict";
+    map.attr('class', function(d) {
+                    return d.properties.neighbourhood;
+                 });
 
-        // set margins according to Mike Bostock's margin conventions
-        // http://bl.ocks.org/mbostock/3019563
-        var margin = {top: 25, right: 40, bottom: 150, left: 75};
+    d3.json("data/airbnb/listing_count.json", function(data) {
+        var listings_extent = d3.extent(d3.values(data));
 
-        // set height and width of chart
-        var width = 1400 - margin.left - margin.right,
-            height = 800 - margin.top - margin.bottom;
+        var bubbles = d3.select('#map').append("g")
+               .attr("class", "bubble")
+               .selectAll("circle")
+               .data(geo_data.features)
+               .enter()
+               .append("circle")
+               .attr('class', 'airbnb');
 
-        var field = 'temperature';
-        
-        // Append the title for the graph
-        d3.select("body")
-            .append("h2")
-            .text("Noe Valley Temperature")
-            .attr('class', 'title');
-
-        // append the SVG tag with height and width to accommodate for margins
-        var svg = d3.select("body")
-                    .append("svg")
-                      .attr("width", width + margin.left + margin.right)
-                      .attr("height", height + margin.top + margin.bottom)
-                    .append('g')
-                      .attr('class','chart')
-                      .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
-
-        // object to keep track on animation state
-        var animation = {
-          "timeout": false,
-          "animating": false
-        };
-
-        // group data by day
-        var nested = d3.nest()
-                       .key(function(d) {
-                          var ts = d['timestamp'];
-                          return (ts.getMonth() + 1).toString() + '/' + ts.getDate();
-                        })
-                       .entries(data);
-
-        // remove the first 10 days of data (month of January)
-        var day_data = nested.slice(10);
-
-        // extract the days we are visualizing
-        // (to be used as labels in buttons)
-        var days = day_data.map(function(d, i) {
-          return {
-            key: d.key,
-            selected: false,
-            idx: i
-          };
+        bubbles.datum(function(d) {
+          d.count = data[d.properties.neighbourhood];
+          return d;
         });
 
-        // dynamically create buttons to toggle days
-        var buttons = d3.select("body")
-          .append("div")
-          .attr("class", "day_buttons")
-          .selectAll("div")
-          .data(days)
-          .enter()
-          .append("div")
-          .text(function(d) {
-             return d.key;
-          })
-          .attr('id', function(d) {
-             // convert mm/dd to mm_dd for more readable #id
-             return 'd' + d.key.split('/').join('_');
-          });
+        var radius = d3.scale.pow().exponent(1.2)
+                       .domain(listings_extent)
+                       .range([3, 25]);
 
-        // toggle button of first day
-        d3.select('.day_buttons')
-              .select('div:first-child')
-                .transition()
-                .duration(500)
-                .style("background", "#F7977A")
-                .style('color', 'black');
+        bubbles
+           .attr("cx", function(d) { return path.centroid(d.geometry)[0]; })
+           .attr("cy", function(d) { return path.centroid(d.geometry)[1]; })
+           .attr("r", function(d) { return radius(d.count); });
 
-        // Find min/max of temperature column
-        var temp_extent = d3.extent(data, function(d) {
-            return d[field];
-        });
+        d3.csv('data/airbnb/neighborhood_reviews_timeseries.csv',
+          function(timeseries) {
+            var field = "Mission";
 
-        // get min/max times of first day of data
-        // (we will need a new extent for each day)
-        var time_extent = d3.extent(day_data[0].values, function(d){
-            return d['timestamp'];
-        });
+            // maximum reviews
+            var max_y = d3.max(timeseries, function(d) {
+                var max = 0;
 
-        // Create x-axis scale mapping dates -> pixels
-        var time_scale = d3.time.scale()
-            .range([0, width])
-            .domain(time_extent);
+                d3.values(d).forEach(function(i) {
+                  if (+i && (+i > max)) {
+                    max = +i;
+                  }
+                });
 
-        // Create y-axis scale mapping temperature -> pixels
-        var temp_scale = d3.scale.linear()
-            .range([height, 0])
-            .domain(temp_extent);
-
-        // Create D3 axis object from time_scale for the x-axis
-        var time_axis = d3.svg.axis()
-            .scale(time_scale)
-            .ticks(d3.time.hours, 2)
-            .tickFormat(d3.time.format("%I:00 %p"));
-
-        // Create D3 axis object from temp_scale for the y-axis
-        var temp_axis = d3.svg.axis()
-            .scale(temp_scale)
-            .orient("left");
-
-        // determine thresholds for gradient stops
-        var range = temp_extent[1] - temp_extent[0];
-        var interval = range / 3;
-        var low_threshold = temp_extent[0] + interval;
-        var high_threshold = temp_extent[0] + 2 * interval;
-
-        // Append a Gradient to double encode temperature
-        svg.append("linearGradient")
-          .attr("id", "temperature-gradient")
-          .attr("gradientUnits", "userSpaceOnUse")
-          .attr("x1", 0).attr("y1", temp_scale(low_threshold))
-          .attr("x2", 0).attr("y2", temp_scale(high_threshold))
-        .selectAll("stop")
-          .data([
-            {offset: "0%", color: "steelblue"},
-            {offset: "50%", color: "gray"},
-            {offset: "100%", color: "red"}
-          ])
-        .enter().append("stop")
-          .attr("offset", function(d) { return d.offset; })
-          .attr("stop-color", function(d) { return d.color; });
-
-        // Append SVG to page corresponding to the x-axis
-        svg.append('g')
-            .attr('class', 'x axis')
-            .attr('transform', "translate(0," + height + ")")
-            .call(time_axis);
-
-        // Append SVG to page corresponding to the y-axis
-        svg.append('g')
-            .attr('class', 'y axis')
-            .call(temp_axis);
-
-        // add label to y-axis
-        d3.select(".y.axis")
-            .append("text")
-            .text("Degrees (Celsius)")
-            .attr("transform", "rotate(-90, -43, 0) translate(-400)");
-
-        // define the values to map for x and y position of the line
-        var line = d3.svg.line()
-                       .x(function(d) { return time_scale(d['timestamp']); })
-                       .y(function(d) { return temp_scale(d[field]); });
-
-        // append a SVG path that corresponds to the line chart
-        var path = svg.append("path")
-                       .datum(day_data[0].values)
-                       .attr("class", "line")
-                       .attr("d", line);
-
-        // create a timeout interval to animate over the days
-        var interval_timeout = function(day_idx) {
-
-          // set timeout to run callback function every 2000 milliseconds
-          var day_interval = setInterval(function(){
-            // run the update function to update the bound data appropriately
-            update(day_data[day_idx].key);
-
-            // increment the day visualized by one
-            day_idx++;
-
-            if(day_idx >= day_data.length) {
-               // clear callback if we have reached the end of days
-               clearInterval(day_interval);
-            }
-          }, 2000);
-
-          // change animation state on the global object to true
-          animation.animating = true;
-
-          // return a function we can use to stop the animation
-          return function() {
-            clearInterval(day_interval);
-          };
-        };
-
-        // define a function to unselect all the buttons
-        var button_unhighlight = function() {
-          d3.select(".day_buttons")
-              .selectAll("div")
-              .datum(function(d) {
-                // change the internal state of each button to unselected
-                d.selected = false;
-                return d;
-              })
-              .transition()
-              .duration(500)
-              .style("color", "white")
-              .style("background", '#438CCA');
-        };
-
-        // highlight button with a specified id
-        var button_highlight = function(id) {
-          d3.select('#' + 'd' + id.split('/').join('_'))
-          .datum(function(d) {
-                // change internal state to selected
-                d.selected = true;
-                return d;
-              })
-              .transition()
-              .duration(500)
-              .style("background", "#F7977A")
-              .style('color', 'black');
-        };
-
-        // function to be run when on a clicked button
-        buttons.on("click", function(d) {
-          if(d.selected === true) {
-              // if button is selected an the animation is stopped
-              if (animation.animating === false) {
-                // change internal state of this button
-                d.selected = false;
-
-                button_unhighlight();
-
-                // start the animation on the next button
-                animation.timeout = interval_timeout(d.idx + 1);
-              } else {
-                // if the button is selected but animation
-                // is running, stop the animation
-                animation.timeout();
-                animation.animating = false;
-              }
-          } else {
-              // if button is not selected, selected it
-              d.selected = true;
-
-              // stop the animation
-              animation.animating = false;
-              animation.timeout();
-          }
-
-          // update the bound data for this button
-          d3.select(this).datum(d);
-
-          // run our update function for the line chart
-          update(d.key);
-        });
-
-        // function which updates the data bound to our chart
-        function update(key) {
-            // filter our data for the specified day in 'key'
-            var data_subset = day_data.filter(function(d) {
-              return d.key === key;
-            })[0].values;
-
-            // highlight buttons in sync with animation
-            button_unhighlight();
-            button_highlight(key);
-
-            var time_extent = d3.extent(data_subset, function(d) {
-              return d['timestamp'];
+                return max;
             });
 
-            // Create x-axis scale mapping dates -> pixels
-            var time_scale = d3.time.scale()
-                .range([0, width])
-                .domain(time_extent);
+            // Create y-axis scale mapping price -> pixels
+            var measure_scale = d3.scale.linear()
+                .range([height, 100])
+                .domain([0, max_y]);
 
-            // define the values to map for x and y position of the line
-            var line = d3.svg.line()
-                           .x(function(d) { return time_scale(d['timestamp']); })
-                           .y(function(d) { return temp_scale(d[field]); });
+            // Create D3 axis object from measure_scale for the y-axis
+            var measure_axis = d3.svg.axis()
+                .scale(measure_scale)
+                .orient("right");
 
-            // update data bound to path
-            path.datum(data_subset);
+            // Append SVG to page corresponding to the D3 y-axis
+              d3.select('#chart').append('g')
+                  .attr('class', 'y axis')
+                  .attr("transform", "translate(" + (width - 40) + " ,0)")
+                  .call(measure_axis);
 
-            // transition the line to animate with the changed data
-            path.transition().duration(1000).attr("d", line);
-        };
+              // add label to y-axis
+              d3.select(".y.axis")
+                  .append("text")
+                  .attr('class', 'label')
+                  .text("Reviews per week")
+                  .attr("transform", "translate(45,300) rotate(90)");
 
-        // start initial animation for first day
-        animation.timeout = interval_timeout(1);
-      };
-    </script>
-  </head>
-  <body>
-    <script type="text/javascript">
-      d3.csv("data/grapealope.csv", function(d) {
-        // convert from string to Date object
-        var date = format.parse(d['timestamp']);
+            var drawChart = function(field) {
+              d3.select('#chart').select('.x.axis').remove();
+              d3.select('#chart').select('#chart path').remove();
 
-        // use moment.js to shift time back 8 hours (to PST)
-        var mom = moment(date).subtract(8, 'hours');
-        d['timestamp'] = mom.toDate();
+              d3.select('#heading')
+                .text(field);
 
-        // coerce temperature from string to float
-        d['temperature'] = +d['temperature'];
-        return d;
-      }, draw);
-    </script>
-  </body>
+              // remove missing values
+              timeseries = timeseries.filter(function(d) {
+                return d[field];
+              });
+
+              // get min/max dates
+              var time_extent = d3.extent(timeseries, function(d){
+                return format.parse(d['timestamp']);
+              });
+
+              // Create x-axis scale mapping dates -> pixels
+              var time_scale = d3.time.scale()
+                  .range([0, width - 50])
+                  .domain(time_extent);
+
+              // Create D3 axis object from time_scale for the x-axis
+              var time_axis = d3.svg.axis()
+                  .scale(time_scale)
+                  .tickFormat(d3.time.format("%b '%y"));
+
+              // Append SVG to page corresponding to the D3 x-axis
+              d3.select('#chart').append('g')
+                  .attr('class', 'x axis')
+                  .attr('transform', "translate(0," + height + ")")
+                  .call(time_axis);
+              
+              // define the values to map for x and y position of the line
+              var line = d3.svg.line()
+                           .x(function(d) { return time_scale(format.parse(d['timestamp'])); })
+                           .y(function(d) { return measure_scale(+d[field]); });
+
+              // append a SVG path that corresponds to the line chart
+              d3.select('#chart').append("path")
+                .datum(timeseries)
+                .attr("class", "line")
+                .attr("d", line);
+            };
+
+            drawChart(field);
+
+            var mover = function(d) {
+              var neigh = d.properties.neighbourhood;
+              d3.select('#map path.' + neigh).style('fill', 'black');
+              
+              drawChart(neigh);
+            };
+
+            var mout = function(d) {
+              var neigh = d.properties.neighbourhood;
+              d3.select('path.' + neigh).style('fill', '#eee');
+            }
+
+            map.on("mouseover", mover);
+            map.on("mouseout", mout);
+
+            bubbles.on('mouseover', mover);
+            bubbles.on('mouseout', mout);
+        });
+    });
+    }
+  </script>
+</head>
+<body>
+    <svg id="map"></svg>
+    <svg id="chart">
+      <text x="50%" y="50" id="heading" font-size="2em" text-anchor="middle" font-family="futura">SF</text>
+</svg>
+  <script>
+    d3.json("data/airbnb/neighbourhoods.geojson", draw);
+  </script>
+</body>
 </html>
