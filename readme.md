@@ -1,5 +1,7 @@
 # Building Interactive Data Visualizations
 
+[![Join the chat at https://gitter.im/Jay-Oh-eN/interactive-data-viz](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/Jay-Oh-eN/interactive-data-viz?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 This repository contains the files and data from my workshop at Strata San Jose 2015 as well as resources and next steps. Videos of the workshop can be found [here](http://bit.ly/strata-data-viz-video).
 
 I would love your feedback on the materials either on the [Q&A forum](https://groups.google.com/forum/#!forum/interactive-data-viz) (Google Group) or in the Github [issues](https://github.com/Jay-Oh-eN/strata-interactive-data-viz/issues).
